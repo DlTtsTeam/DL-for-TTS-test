@@ -1,4 +1,5 @@
 import time
+
 import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data as mnist_data
 
@@ -60,18 +61,22 @@ for i in range(trainSteps):
     batchX, batchY = mnist.train.next_batch(100)
     trainData = {X: batchX, Y_: batchY}
 
-    # train
-    sess.run(trainStep, feed_dict=trainData)
-
-    # success ? add code to print it
+    # train and write statistics
     if i % showStep == 0 or i == lastStep:
-        s = sess.run(summary, feed_dict=trainData)
+        run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+        run_metadata = tf.RunMetadata()
+
+        s, t = sess.run([summary, trainStep], feed_dict=trainData, options=run_options, run_metadata=run_metadata)
+        trainWriter.add_summary(s, i)
+        trainWriter.add_run_metadata(run_metadata, 'step%d' % i)
+    else:
+        s, t = sess.run([summary, trainStep], feed_dict=trainData)
         trainWriter.add_summary(s, i)
 
-# success on test data ?
+    # success on test data ?
     testData = {X: mnist.test.images, Y_: mnist.test.labels}
     if i % showStep == 0 or i == lastStep:
-        a, c, s = sess.run([accuracy, crossEntropy,summary], feed_dict=testData)
+        a, c, s = sess.run([accuracy, crossEntropy, summary], feed_dict=testData)
         testWriter.add_summary(s, i)
         print("test:", "step=", i, "accuracy=", a, "crossEntropy=", c)
 
