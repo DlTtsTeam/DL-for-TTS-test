@@ -2,6 +2,8 @@ import time
 
 import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data as mnist_data
+from tensorflow.python.tools import inspect_checkpoint as chkp
+
 
 print("Tensorflow version " + tf.__version__)
 
@@ -43,43 +45,65 @@ tf.summary.histogram("weights", W)
 tf.summary.histogram("biases", b)
 summary = tf.summary.merge_all()
 
-sess = tf.Session()
-sess.run(init)
-
 BASE_SUMMARY_DIR = "summary"
+VAR_SAVER_PATH = "model/saver/vars.ckpt"
 
-trainWriter = tf.summary.FileWriter(BASE_SUMMARY_DIR + "/train", sess.graph)
-testWriter = tf.summary.FileWriter(BASE_SUMMARY_DIR + "/test", sess.graph)
+with tf.Session() as sess:
+    sess.run(init)
 
-trainSteps = 10000
-showStep = trainSteps / 100
-lastStep = trainSteps - 1
+    trainWriter = tf.summary.FileWriter(BASE_SUMMARY_DIR + "/train", sess.graph)
+    testWriter = tf.summary.FileWriter(BASE_SUMMARY_DIR + "/test", sess.graph)
 
-start = time.time()
-for i in range(trainSteps):
-    # load batch of images and correct answers
-    batchX, batchY = mnist.train.next_batch(100)
-    trainData = {X: batchX, Y_: batchY}
+    trainSteps = 10000
+    showStep = trainSteps / 100
+    lastStep = trainSteps - 1
 
-    # train and write statistics
-    if i % showStep == 0 or i == lastStep:
-        run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-        run_metadata = tf.RunMetadata()
+    start = time.time()
+    for i in range(trainSteps):
+        # load batch of images and correct answers
+        batchX, batchY = mnist.train.next_batch(100)
+        trainData = {X: batchX, Y_: batchY}
 
-        s, t = sess.run([summary, trainStep], feed_dict=trainData, options=run_options, run_metadata=run_metadata)
-        trainWriter.add_summary(s, i)
-        trainWriter.add_run_metadata(run_metadata, 'step%d' % i)
-    else:
-        s, t = sess.run([summary, trainStep], feed_dict=trainData)
-        trainWriter.add_summary(s, i)
+        # train and write statistics
+        if i % showStep == 0 or i == lastStep:
+            run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+            run_metadata = tf.RunMetadata()
 
+            s, t = sess.run([summary, trainStep], feed_dict=trainData, options=run_options, run_metadata=run_metadata)
+            trainWriter.add_summary(s, i)
+            trainWriter.add_run_metadata(run_metadata, 'step%d' % i)
+        else:
+            s, t = sess.run([summary, trainStep], feed_dict=trainData)
+            trainWriter.add_summary(s, i)
+
+        # success on test data ?
+        testData = {X: mnist.test.images, Y_: mnist.test.labels}
+        if i % showStep == 0 or i == lastStep:
+            a, c, s = sess.run([accuracy, crossEntropy, summary], feed_dict=testData)
+            testWriter.add_summary(s, i)
+            print("test:", "step=", i, "accuracy=", a, "crossEntropy=", c)
+
+    print("training is done")
+    print("start:", time.ctime(start))
+    print("stop:", time.ctime(time.time()))
+
+    # Add ops to save and restore all the variables.
+    saver = tf.train.Saver() # use map {"W": W} to store only separate variable; we can use many savers
+    saver.save(sess, VAR_SAVER_PATH)
+
+
+# print all tensors in checkpoint file
+chkp.print_tensors_in_checkpoint_file(VAR_SAVER_PATH, tensor_name='', all_tensors=True, all_tensor_names=True)
+
+with tf.Session() as sess:
+    sess.run(init)
+
+    print("\nRestoring variables...")
+    saver = tf.train.Saver()  # use map {"W": W} to store only separate variable; we can use many savers
+    saver.restore(sess, VAR_SAVER_PATH)
+
+    print("Done.","\n")
     # success on test data ?
     testData = {X: mnist.test.images, Y_: mnist.test.labels}
-    if i % showStep == 0 or i == lastStep:
-        a, c, s = sess.run([accuracy, crossEntropy, summary], feed_dict=testData)
-        testWriter.add_summary(s, i)
-        print("test:", "step=", i, "accuracy=", a, "crossEntropy=", c)
-
-print("training is done")
-print("start:", time.ctime(start))
-print("stop:", time.ctime(time.time()))
+    a, c = sess.run([accuracy, crossEntropy], feed_dict=testData)
+    print("Test:", "accuracy=", a, "crossEntropy=", c)
