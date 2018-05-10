@@ -4,49 +4,79 @@ import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data as mnist_data
 from tensorflow.python.tools import inspect_checkpoint as chkp
 
-
 print("Tensorflow version " + tf.__version__)
+
+
+def hidden_layer(input, inSize, outSize, name='hidden'):
+    with tf.name_scope(name) as scope:
+        w = tf.Variable(tf.truncated_normal([inSize, outSize], stddev=0.1), name="weights")
+        b = tf.Variable(tf.zeros([outSize]), name="biases")
+        # preparing data for visualization
+        tf.summary.histogram("weights", w)
+        tf.summary.histogram("biases", b)
+        # model
+        res = tf.nn.relu(tf.matmul(input, w) + b)
+        return res
+
+
+def final_layer(input, inSize, outSize, name='final'):
+    with tf.name_scope(name) as scope:
+        w = tf.Variable(tf.truncated_normal([inSize, outSize], stddev=0.1), name="weights")
+        b = tf.Variable(tf.zeros([outSize]), name="biases")
+        # preparing data for visualization
+        tf.summary.histogram("weights", w)
+        tf.summary.histogram("biases", b)
+        # model
+        res = tf.nn.softmax(tf.matmul(input, w) + b)
+        return res
+
 
 # Download images and labels into mnist.test (10K images+labels) and mnist.train (60K images+labels)
 mnist = mnist_data.read_data_sets("data", one_hot=True, reshape=False, validation_size=0)
 
+IS = 28
+L0 = IS * IS
+L1 = 200
+L2 = 60
+L3 = 30
+LN = 10
+
 # initialization
-X = tf.placeholder(tf.float32, [None, 28, 28, 1], name="inputs")
-with tf.name_scope('mainLayer') as scope:
-    W = tf.Variable(tf.zeros([784, 10]), name="weights")
-    b = tf.Variable(tf.zeros([10]), name="biases")
-    # model
-    Y = tf.nn.softmax(tf.matmul(tf.reshape(X, [-1, 784]), W) + b, name="Y")
+x = tf.placeholder(tf.float32, [None, IS, IS, 1], name="inputs")
+# placeholder for correct answers
+y = tf.placeholder(tf.float32, [None, LN], name="labels")
+
+res1 = hidden_layer(tf.reshape(x, [-1, L0]), L0, L1, 'layer1')
+res2 = hidden_layer(res1, L1, L2, 'layer2')
+res3 = hidden_layer(res2, L2, L3, 'layer3')
+res = final_layer(res3, L3, LN)
 
 init = tf.global_variables_initializer()
-
-# placeholder for correct answers
-Y_ = tf.placeholder(tf.float32, [None, 10], name="Y_")
 
 # Success metrics:
 # loss function
 with tf.name_scope('ceCalc') as scope:
-    crossEntropy = -tf.reduce_sum(Y_ * tf.log(Y), name="crossEntropy")
+    crossEntropy = -tf.reduce_sum(y * tf.log(res), name="crossEntropy")
+    tf.summary.scalar("crossEntropy", crossEntropy)
 
 # % of correct answers found in batch
 with tf.name_scope('aCalc') as scope:
-    isCorrect = tf.equal(tf.argmax(Y, 1), tf.argmax(Y_, 1))
+    isCorrect = tf.equal(tf.argmax(res, 1), tf.argmax(y, 1))
     accuracy = tf.reduce_mean(tf.cast(isCorrect, tf.float32), name="accuracy")
+    tf.summary.scalar("accuracy", accuracy)
 
 # training step
 with tf.name_scope('train') as scope:
-    optimizer = tf.train.GradientDescentOptimizer(0.005)
+    optimizer = tf.train.GradientDescentOptimizer(0.003)
     trainStep = optimizer.minimize(crossEntropy)
 
-# preparing data for visualization
-tf.summary.scalar("accuracy", accuracy)
-tf.summary.scalar("crossEntropy", crossEntropy)
-tf.summary.histogram("weights", W)
-tf.summary.histogram("biases", b)
 summary = tf.summary.merge_all()
 
 BASE_SUMMARY_DIR = "summary"
 VAR_SAVER_PATH = "model/saver/vars.ckpt"
+trainSteps = 10000
+showStep = 100
+lastStep = trainSteps - 1
 
 with tf.Session() as sess:
     sess.run(init)
@@ -54,15 +84,11 @@ with tf.Session() as sess:
     trainWriter = tf.summary.FileWriter(BASE_SUMMARY_DIR + "/train", sess.graph)
     testWriter = tf.summary.FileWriter(BASE_SUMMARY_DIR + "/test", sess.graph)
 
-    trainSteps = 10000
-    showStep = trainSteps / 100
-    lastStep = trainSteps - 1
-
     start = time.time()
     for i in range(trainSteps):
         # load batch of images and correct answers
         batchX, batchY = mnist.train.next_batch(100)
-        trainData = {X: batchX, Y_: batchY}
+        trainData = {x: batchX, y: batchY}
 
         # train and write statistics
         if i % showStep == 0 or i == lastStep:
@@ -77,7 +103,7 @@ with tf.Session() as sess:
             trainWriter.add_summary(s, i)
 
         # success on test data ?
-        testData = {X: mnist.test.images, Y_: mnist.test.labels}
+        testData = {x: mnist.test.images, y: mnist.test.labels}
         if i % showStep == 0 or i == lastStep:
             a, c, s = sess.run([accuracy, crossEntropy, summary], feed_dict=testData)
             testWriter.add_summary(s, i)
@@ -88,9 +114,8 @@ with tf.Session() as sess:
     print("stop:", time.ctime(time.time()))
 
     # Add ops to save and restore all the variables.
-    saver = tf.train.Saver() # use map {"W": W} to store only separate variable; we can use many savers
+    saver = tf.train.Saver()  # use map {"W": W} to store only separate variable; we can use many savers
     saver.save(sess, VAR_SAVER_PATH)
-
 
 # print all tensors in checkpoint file
 chkp.print_tensors_in_checkpoint_file(VAR_SAVER_PATH, tensor_name='', all_tensors=True, all_tensor_names=True)
@@ -102,8 +127,8 @@ with tf.Session() as sess:
     saver = tf.train.Saver()  # use map {"W": W} to store only separate variable; we can use many savers
     saver.restore(sess, VAR_SAVER_PATH)
 
-    print("Done.","\n")
+    print("Done.", "\n")
     # success on test data ?
-    testData = {X: mnist.test.images, Y_: mnist.test.labels}
+    testData = {x: mnist.test.images, y: mnist.test.labels}
     a, c = sess.run([accuracy, crossEntropy], feed_dict=testData)
     print("Test:", "accuracy=", a, "crossEntropy=", c)
