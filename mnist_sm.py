@@ -2,12 +2,25 @@ import time
 
 import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data as mnist_data
+from tensorflow.python.feature_column.feature_column import input_layer
 from tensorflow.python.tools import inspect_checkpoint as chkp
 
 print("Tensorflow version " + tf.__version__)
 
 
-def hidden_layer(input, inSize, outSize, name='hidden'):
+def conv_layer(input, filterX, filterY, inChannels, outChannels, name='convolutional'):
+    with tf.name_scope(name) as scope:
+        w = tf.Variable(tf.truncated_normal([filterX, filterY, inChannels, outChannels], stddev=0.1), name="weights")
+        b = tf.Variable(tf.zeros([outChannels]), name="biases")
+        # preparing data for visualization
+        tf.summary.histogram("weights", w)
+        tf.summary.histogram("biases", b)
+        # model
+        res = tf.nn.relu(tf.nn.conv2d(input, w, strides=[1, 1, 1, 1], padding="SAME") + b)
+        return res
+
+
+def fc_relu_layer(input, inSize, outSize, name='fc_relu'):
     with tf.name_scope(name) as scope:
         w = tf.Variable(tf.truncated_normal([inSize, outSize], stddev=0.1), name="weights")
         b = tf.Variable(tf.zeros([outSize]), name="biases")
@@ -19,7 +32,7 @@ def hidden_layer(input, inSize, outSize, name='hidden'):
         return res
 
 
-def final_layer(input, inSize, outSize, name='final'):
+def fc_softmax_layer(input, inSize, outSize, name='fc_softmax'):
     with tf.name_scope(name) as scope:
         w = tf.Variable(tf.truncated_normal([inSize, outSize], stddev=0.1), name="weights")
         b = tf.Variable(tf.zeros([outSize]), name="biases")
@@ -35,7 +48,7 @@ def final_layer(input, inSize, outSize, name='final'):
 mnist = mnist_data.read_data_sets("data", one_hot=True, reshape=False, validation_size=0)
 
 IS = 28
-L0 = IS * IS
+L0 = IS * IS * 4
 L1 = 200
 L2 = 60
 L3 = 30
@@ -46,10 +59,11 @@ x = tf.placeholder(tf.float32, [None, IS, IS, 1], name="inputs")
 # placeholder for correct answers
 y = tf.placeholder(tf.float32, [None, LN], name="labels")
 
-res1 = hidden_layer(tf.reshape(x, [-1, L0]), L0, L1, 'layer1')
-res2 = hidden_layer(res1, L1, L2, 'layer2')
-res3 = hidden_layer(res2, L2, L3, 'layer3')
-res = final_layer(res3, L3, LN)
+res0 = conv_layer(x, 5, 5, 1, 4, "layer0")
+res1 = fc_relu_layer(tf.reshape(res0, [-1, L0]), L0, L1, 'layer1')
+res2 = fc_relu_layer(res1, L1, L2, 'layer2')
+res3 = fc_relu_layer(res2, L2, L3, 'layer3')
+res = fc_softmax_layer(res3, L3, LN)
 
 init = tf.global_variables_initializer()
 
@@ -85,6 +99,7 @@ with tf.Session() as sess:
     testWriter = tf.summary.FileWriter(BASE_SUMMARY_DIR + "/test", sess.graph)
 
     start = time.time()
+    print("start:", time.ctime(start))
     for i in range(trainSteps):
         # load batch of images and correct answers
         batchX, batchY = mnist.train.next_batch(100)
@@ -107,7 +122,7 @@ with tf.Session() as sess:
         if i % showStep == 0 or i == lastStep:
             a, c, s = sess.run([accuracy, crossEntropy, summary], feed_dict=testData)
             testWriter.add_summary(s, i)
-            print("test:", "step=", i, "accuracy=", a, "crossEntropy=", c)
+            print("test:", "step=", i, "accuracy=", a, "crossEntropy=", c, 'time', time.ctime(time.time()))
 
     print("training is done")
     print("start:", time.ctime(start))
