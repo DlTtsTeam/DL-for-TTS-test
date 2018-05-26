@@ -2,7 +2,6 @@ import time
 
 import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data as mnist_data
-from tensorflow.python.feature_column.feature_column import input_layer
 from tensorflow.python.tools import inspect_checkpoint as chkp
 
 print("Tensorflow version " + tf.__version__)
@@ -20,7 +19,7 @@ def conv_layer(input, filterX, filterY, inChannels, outChannels, xStride=1, yStr
         return res
 
 
-def fc_relu_layer(input, inSize, outSize, name='fc_relu'):
+def fc_layer(input, inSize, outSize, activation=tf.nn.relu, name='fc_relu'):
     with tf.name_scope(name) as scope:
         w = tf.Variable(tf.truncated_normal([inSize, outSize], stddev=0.1), name="weights")
         b = tf.Variable(tf.zeros([outSize]), name="biases")
@@ -28,21 +27,8 @@ def fc_relu_layer(input, inSize, outSize, name='fc_relu'):
         tf.summary.histogram("weights", w)
         tf.summary.histogram("biases", b)
         # model
-        res = tf.nn.relu(tf.matmul(input, w) + b)
+        res = activation(tf.matmul(input, w) + b)
         return res
-
-
-def fc_softmax_layer(input, inSize, outSize, name='fc_softmax'):
-    with tf.name_scope(name) as scope:
-        w = tf.Variable(tf.truncated_normal([inSize, outSize], stddev=0.1), name="weights")
-        b = tf.Variable(tf.zeros([outSize]), name="biases")
-        # preparing data for visualization
-        tf.summary.histogram("weights", w)
-        tf.summary.histogram("biases", b)
-        # model
-        res = tf.nn.softmax(tf.matmul(input, w) + b)
-        return res
-
 
 # Download images and labels into mnist.test (10K images+labels) and mnist.train (60K images+labels)
 mnist = mnist_data.read_data_sets("data", one_hot=True, reshape=False, validation_size=0)
@@ -64,8 +50,8 @@ y = tf.placeholder(tf.float32, [None, LN], name="labels")
 res0 = conv_layer(x, 5, 5, 1, 4, name="layer0")
 res1 = conv_layer(res0, 4, 4, 4, 8, xStride=2, yStride=2, name="layer1")
 res2 = conv_layer(res1, 4, 4, 8, 16, xStride=2, yStride=2, name="layer2")
-res3 = fc_relu_layer(tf.reshape(res2, [-1, L2]), L2, L3, name='layer4')
-res = fc_softmax_layer(res3, L3, LN)
+res3 = fc_layer(tf.reshape(res2, [-1, L2]), L2, L3, name='layer4')
+res = fc_layer(res3, L3, LN, activation=tf.nn.softmax)
 
 init = tf.global_variables_initializer()
 
