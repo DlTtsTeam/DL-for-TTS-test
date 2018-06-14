@@ -25,11 +25,11 @@ epochs = 20
 
 inputs = Input((i_size, i_size, 1), name="input_data")
 reshape = layers.Reshape((i_size * i_size,))(inputs)
-outputs = layers.Dense(l1_size, activation=tf.nn.relu)(reshape)
-outputs = layers.Dense(l2_size, activation=tf.nn.relu)(outputs)
-outputs = layers.Dense(l3_size, activation=tf.nn.relu)(outputs)
-outputs = layers.Dense(l4_size, activation=tf.nn.relu)(outputs)
-outputs = layers.Dense(o_size, activation=tf.nn.softmax)(outputs)
+outputs = layers.Dense(l1_size, activation=tf.nn.relu, name="layer1")(reshape)
+outputs = layers.Dense(l2_size, activation=tf.nn.relu, name="layer2")(outputs)
+outputs = layers.Dense(l3_size, activation=tf.nn.relu, name="layer3")(outputs)
+outputs = layers.Dense(l4_size, activation=tf.nn.relu, name="layer4")(outputs)
+outputs = layers.Dense(o_size, activation=tf.nn.softmax, name="layer5")(outputs)
 
 model = Model(inputs=inputs, outputs=outputs)
 
@@ -37,11 +37,11 @@ model.compile(optimizer=tf.train.GradientDescentOptimizer(0.003),
               loss='categorical_crossentropy',
               metrics=['accuracy'])
 
-cb_tensorboard = tf.keras.callbacks.TensorBoard(log_dir='./summary/nn5', histogram_freq=0, \
+cb_tensorboard = tf.keras.callbacks.TensorBoard(log_dir='./summary/nn5', histogram_freq=1, write_grads=True, \
                                 write_graph=True, write_images=True)
 
 model.fit(x=mnist.train.images, y=mnist.train.labels, \
-          batch_size=batch, epochs=epochs, \
+          batch_size=batch, epochs=epochs, validation_data=(mnist.test.images, mnist.test.labels), \
           callbacks=[cb_tensorboard])  # starts training
 
 #test

@@ -21,7 +21,7 @@ epochs = 20
 
 inputs = Input((i_size, i_size, 1), name="input_data")
 reshape = layers.Reshape((i_size * i_size,))(inputs)
-outputs = layers.Dense(o_size, activation=tf.nn.softmax)(reshape)
+outputs = layers.Dense(o_size, activation=tf.nn.softmax, name="layer1")(reshape)
 
 model = Model(inputs=inputs, outputs=outputs)
 
@@ -29,11 +29,11 @@ model.compile(optimizer=tf.train.GradientDescentOptimizer(0.003),
               loss='categorical_crossentropy',
               metrics=['accuracy'])
 
-cb_tensorboard = tf.keras.callbacks.TensorBoard(log_dir='./summary/nn1', histogram_freq=0, \
+cb_tensorboard = tf.keras.callbacks.TensorBoard(log_dir='./summary/nn1', histogram_freq=1, write_grads=True, \
                                 write_graph=True, write_images=True)
 
 model.fit(x=mnist.train.images, y=mnist.train.labels, \
-          batch_size=batch, epochs=epochs, \
+          batch_size=batch, epochs=epochs, validation_data=(mnist.test.images, mnist.test.labels), \
           callbacks=[cb_tensorboard])  # starts training
 
 # test

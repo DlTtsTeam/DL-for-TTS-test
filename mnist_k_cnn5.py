@@ -37,11 +37,11 @@ model.compile(optimizer=tf.train.AdamOptimizer(0.0003),
               loss='categorical_crossentropy',
               metrics=['accuracy'])
 
-cb_tensorboard = tf.keras.callbacks.TensorBoard(log_dir='./summary/cnn5', histogram_freq=0, \
+cb_tensorboard = tf.keras.callbacks.TensorBoard(log_dir='./summary/cnn5', histogram_freq=1, write_grads=True, \
                                 write_graph=True, write_images=True)
 
 model.fit(x=mnist.train.images, y=mnist.train.labels, \
-          batch_size=batch, epochs=epochs, \
+          batch_size=batch, epochs=epochs, validation_data=(mnist.test.images, mnist.test.labels), \
           callbacks=[cb_tensorboard])  # starts training
 
 # test
