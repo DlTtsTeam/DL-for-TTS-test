@@ -4,6 +4,7 @@ from tensorflow.examples.tutorials.mnist import input_data as mnist_data
 from tensorflow.python.keras.models import *
 from tensorflow.python.keras import Input
 from tensorflow.python.keras import layers
+from tensorflow.python.keras import optimizers
 
 print("Tensorflow version " + tf.__version__)
 
@@ -33,7 +34,7 @@ outputs = layers.Dense(o_size, activation=tf.nn.softmax, name="layer5")(outputs)
 
 model = Model(inputs=inputs, outputs=outputs)
 
-model.compile(optimizer=tf.train.AdamOptimizer(0.0003),
+model.compile(optimizer=optimizers.Adagrad(0.003),
               loss='categorical_crossentropy',
               metrics=['accuracy'])
 
@@ -52,3 +53,5 @@ result = model.evaluate(x=mnist.test.images,
 # all model performance metrics for test
 for name, value in zip(model.metrics_names, result):
     print(name, value)
+
+model.save("./save/сnn5.h5")
