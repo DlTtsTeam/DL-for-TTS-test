@@ -14,7 +14,7 @@ def load_and_process_image(path):
     return img
 
 #load the image
-img = load_and_process_image('./data/pics/77.jpg')
+img = load_and_process_image('./pics/77.jpg')
 
 img = image.img_to_array(img)
 #useing the model
